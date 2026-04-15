@@ -1,1 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Geometric Transformation Tool</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    :root {
+      --bg:       #0c0e18;
+      --surface:  #141726;
+      --card:     #1c2035;
+      --border:   #262b45;
+      --accent:   #7c6af7;
+      --accent2:  #f76c6a;
+      --accent3:  #6af7c4;
+      --text:     #e2e4f0;
+      --muted:    #7a7f9a;
+      --radius:   12px;
+      --shadow:   0 4px 24px rgba(0,0,0,.45);
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #1a1040 0%, #0c0e18 60%);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    header .logo {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    header h1 { font-size: 1.35rem; font-weight: 700; letter-spacing: -.3px; }
+    header p  { font-size: .8rem; color: var(--muted); }
+
+    /* ── Layout ── */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 0;
+    }
+
+    /* ── Controls Panel ── */
+    .panel {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 28px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      overflow-y: auto;
+    }
+
+    .section-label {
+      font-size: .7rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    /* Shape Picker */
+    .shape-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .shape-btn {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 8px;
+      cursor: pointer;
+      color: var(--text);
+      font-size: .82rem;
+      font-weight: 500;
+      transition: all .2s;
+      text-align: center;
+    }
+    .shape-btn .icon { font-size: 1.5rem; display: block; margin-bottom: 4px; }
+    .shape-btn:hover, .shape-btn.active {
+      border-color: var(--accent);
+      background: rgba(124,106,247,.15);
+      color: var(--accent);
+    }
+
+    /* Custom points */
+    #custom-area { display: none; }
+    #custom-area.visible { display: block; }
+    #custom-points {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--text);
+      font-size: .82rem;
+      font-family: monospace;
+      resize: vertical;
+      min-height: 80px;
+      margin-top: 6px;
+    }
+    #custom-points::placeholder { color: var(--muted); }
+
+    /* Transform Builder */
+    .transform-form {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .transform-form select,
+    .transform-form input {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 12px;
+      color: var(--text);
+      font-size: .82rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .transform-form select:focus,
+    .transform-form input:focus { border-color: var(--accent); }
+    .transform-form select { grid-column: 1 / -1; }
+
+    .add-btn {
+      grid-column: 1 / -1;
+      background: linear-gradient(135deg, var(--accent), #5b4fd4);
+      border: none; border-radius: 8px;
+      padding: 10px;
+      color: #fff; font-weight: 600; font-size: .85rem;
+      cursor: pointer; transition: opacity .2s, transform .1s;
+    }
+    .add-btn:hover   { opacity: .88; }
+    .add-btn:active  { transform: scale(.98); }
+
+    /* Queue */
+    .queue-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 40px;
+    }
+    .queue-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 14px;
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: .82rem;
+      animation: fadeSlide .25s ease;
+    }
+    @keyframes fadeSlide {
+      from { opacity:0; transform: translateY(-6px); }
+      to   { opacity:1; transform: translateY(0); }
+    }
+    .queue-item .badge {
+      font-size: .7rem; font-weight: 700;
+      background: rgba(124,106,247,.25);
+      color: var(--accent);
+      border-radius: 6px;
+      padding: 2px 8px;
+      margin-right: 10px;
+    }
+    .queue-item button {
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); font-size: 1rem; line-height: 1;
+      transition: color .2s;
+    }
+    .queue-item button:hover { color: var(--accent2); }
+    .queue-empty {
+      color: var(--muted); font-size: .8rem;
+      text-align: center; padding: 10px 0;
+    }
+
+    /* View mode toggle */
+    .toggle-group {
+      display: flex; background: var(--card);
+      border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+    }
+    .toggle-group button {
+      flex: 1; background: none; border: none;
+      padding: 9px; color: var(--muted); font-size: .8rem; font-weight: 500;
+      cursor: pointer; transition: all .2s;
+    }
+    .toggle-group button.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* Run button */
+    .run-btn {
+      background: linear-gradient(135deg, #f76c6a, #c84b49);
+      border: none; border-radius: var(--radius);
+      padding: 14px;
+      color: #fff; font-size: .95rem; font-weight: 700;
+      cursor: pointer; transition: opacity .2s, transform .1s;
+      letter-spacing: .02em;
+    }
+    .run-btn:hover   { opacity: .88; }
+    .run-btn:active  { transform: scale(.98); }
+    .run-btn:disabled { opacity: .4; cursor: default; }
+
+    /* ── Result Panel ── */
+    .result-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 32px;
+      gap: 24px;
+      overflow-y: auto;
+    }
+
+    .placeholder {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 16px; flex: 1;
+      color: var(--muted);
+    }
+    .placeholder .big-icon { font-size: 5rem; opacity: .25; }
+    .placeholder p { font-size: .9rem; }
+
+    .result-image {
+      width: 100%;
+      max-width: 960px;
+      background: #141726;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .result-image img { width: 100%; height: auto; display: block; }
+
+    .results-table-wrap {
+      width: 100%; max-width: 960px;
+    }
+    .results-table-wrap h3 {
+      font-size: .85rem; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .08em;
+      margin-bottom: 12px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .83rem;
+    }
+    th, td {
+      padding: 9px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    th { color: var(--muted); font-weight: 600; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.02); }
+
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-msg { display:flex; flex-direction:column; align-items:center; gap:14px; color:var(--muted); font-size:.9rem; }
+    .loading-msg { display: none; }
+    .loading-msg.visible { display: flex; }
+
+    .error-msg {
+      background: rgba(247,108,106,.12);
+      border: 1px solid rgba(247,108,106,.3);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      color: var(--accent2);
+      font-size: .85rem;
+      width: 100%; max-width: 960px;
+    }
+
+    /* steps */
+    .steps-row {
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+      width: 100%; max-width: 960px;
+    }
+    .step-chip {
+      background: rgba(124,106,247,.15);
+      border: 1px solid rgba(124,106,247,.3);
+      color: var(--accent);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: .75rem; font-weight: 600;
+    }
+    .step-arrow { color: var(--muted); font-size: .9rem; }
+
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⬡</div>
+  <div>
+    <h1>Geometric Transformation Tool</h1>
+    <p>NumPy-powered 2D affine transformations, visualized live</p>
+  </div>
+</header>
+
+<main>
+  <!-- Controls -->
+  <div class="panel">
+
+    <!-- Shape -->
+    <div>
+      <div class="section-label">1 · Choose a Shape</div>
+      <div class="shape-grid">
+        <button class="shape-btn active" data-shape="triangle" id="btn-triangle">
+          <span class="icon">▲</span>Triangle
+        </button>
+        <button class="shape-btn" data-shape="square" id="btn-square">
+          <span class="icon">■</span>Square
+        </button>
+        <button class="shape-btn" data-shape="pentagon" id="btn-pentagon">
+          <span class="icon">⬠</span>Pentagon
+        </button>
+        <button class="shape-btn" data-shape="star" id="btn-star">
+          <span class="icon">★</span>Star
+        </button>
+        <button class="shape-btn" data-shape="custom" id="btn-custom" style="grid-column:1/-1">
+          <span class="icon">✎</span>Custom Points
+        </button>
+      </div>
+      <div id="custom-area">
+        <div class="section-label" style="margin-top:10px">Custom Points (one per line: x y)</div>
+        <textarea id="custom-points" placeholder="1 1&#10;4 1&#10;4 4&#10;1 4"></textarea>
+      </div>
+    </div>
+
+    <!-- Transformation Builder -->
+    <div>
+      <div class="section-label">2 · Add Transformations</div>
+      <div class="transform-form">
+        <select id="t-type">
+          <option value="rotate">🔄 Rotate</option>
+          <option value="scale">⇲ Scale</option>
+          <option value="reflect">⟷ Reflect</option>
+        </select>
+
+        <!-- rotate params -->
+        <div id="params-rotate" style="display:contents">
+          <input type="number" id="angle" placeholder="Angle (°)" value="45" step="any" style="grid-column:1/-1" />
+        </div>
+
+        <!-- scale params -->
+        <div id="params-scale" style="display:none; grid-column:1/-1">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px">
+            <input type="number" id="sx" placeholder="sx" value="1.5" step="any" />
+            <input type="number" id="sy" placeholder="sy" value="0.5" step="any" />
+          </div>
+        </div>
+
+        <!-- reflect params -->
+        <div id="params-reflect" style="display:none; grid-column:1/-1">
+          <select id="axis">
+            <option value="x">Reflect across X-axis</option>
+            <option value="y">Reflect across Y-axis</option>
+            <option value="y=x">Reflect across Y = X</option>
+          </select>
+        </div>
+
+        <button class="add-btn" onclick="addTransform()">+ Add to Queue</button>
+      </div>
+    </div>
+
+    <!-- Queue -->
+    <div>
+      <div class="section-label">3 · Transformation Queue</div>
+      <div class="queue-list" id="queue-list">
+        <div class="queue-empty" id="queue-empty">No transformations yet.</div>
+      </div>
+    </div>
+
+    <!-- View mode -->
+    <div>
+      <div class="section-label">4 · View Mode</div>
+      <div class="toggle-group">
+        <button class="active" id="vm-side" onclick="setViewMode('side_by_side')">Side by Side</button>
+        <button id="vm-step" onclick="setViewMode('step_by_step')">Step by Step</button>
+      </div>
+    </div>
+
+    <!-- Run -->
+    <button class="run-btn" id="run-btn" onclick="runTransform()">▶  Apply &amp; Visualize</button>
+
+  </div>
+
+  <!-- Results -->
+  <div class="result-panel" id="result-panel">
+    <div class="placeholder" id="placeholder">
+      <div class="big-icon">📐</div>
+      <p>Configure a shape and transformations, then click <strong>Apply &amp; Visualize</strong>.</p>
+    </div>
+
+    <div class="loading-msg" id="loading">
+      <div class="spinner"></div>
+      <span>Crunching matrices…</span>
+    </div>
+  </div>
+</main>
+
+<script>
+  let selectedShape = 'triangle';
+  let viewMode = 'side_by_side';
+  let queue = [];
+
+  // ── Shape picker ──
+  document.querySelectorAll('.shape-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedShape = btn.dataset.shape;
+      document.getElementById('custom-area').classList.toggle('visible', selectedShape === 'custom');
+    });
+  });
+
+  // ── Transformation type switcher ──
+  document.getElementById('t-type').addEventListener('change', function () {
+    document.getElementById('params-rotate').style.display   = 'none';
+    document.getElementById('params-scale').style.display    = 'none';
+    document.getElementById('params-reflect').style.display  = 'none';
+    const map = { rotate: 'params-rotate', scale: 'params-scale', reflect: 'params-reflect' };
+    document.getElementById(map[this.value]).style.display = 'contents';
+    if (this.value === 'scale') document.getElementById('params-scale').style.display = 'block';
+    if (this.value === 'reflect') document.getElementById('params-reflect').style.display = 'block';
+  });
+
+  // ── View mode ──
+  function setViewMode(mode) {
+    viewMode = mode;
+    document.getElementById('vm-side').classList.toggle('active', mode === 'side_by_side');
+    document.getElementById('vm-step').classList.toggle('active', mode === 'step_by_step');
+  }
+
+  // ── Add transform to queue ──
+  function addTransform() {
+    const type = document.getElementById('t-type').value;
+    let entry, label;
+    if (type === 'rotate') {
+      const angle = parseFloat(document.getElementById('angle').value);
+      if (isNaN(angle)) { alert('Please enter a valid angle.'); return; }
+      entry = { type: 'rotate', angle };
+      label = `Rotate ${angle}°`;
+    } else if (type === 'scale') {
+      const sx = parseFloat(document.getElementById('sx').value);
+      const sy = parseFloat(document.getElementById('sy').value);
+      if (isNaN(sx) || isNaN(sy)) { alert('Please enter valid scale factors.'); return; }
+      entry = { type: 'scale', sx, sy };
+      label = `Scale (${sx}, ${sy})`;
+    } else {
+      const axis = document.getElementById('axis').value;
+      entry = { type: 'reflect', axis };
+      label = `Reflect ${axis}`;
+    }
+    queue.push({ entry, label });
+    renderQueue();
+  }
+
+  function renderQueue() {
+    const list = document.getElementById('queue-list');
+    const empty = document.getElementById('queue-empty');
+    list.innerHTML = '';
+    if (queue.length === 0) {
+      list.appendChild(empty);
+      return;
+    }
+    queue.forEach((item, i) => {
+      const div = document.createElement('div');
+      div.className = 'queue-item';
+      div.innerHTML = `
+        <span><span class="badge">${i+1}</span>${item.label}</span>
+        <button onclick="removeTransform(${i})" title="Remove">✕</button>
+      `;
+      list.appendChild(div);
+    });
+  }
+
+  function removeTransform(idx) {
+    queue.splice(idx, 1);
+    renderQueue();
+  }
+
+  // ── Run ──
+  async function runTransform() {
+    const btn = document.getElementById('run-btn');
+    const placeholder = document.getElementById('placeholder');
+    const loading = document.getElementById('loading');
+
+    // Clear old results
+    document.querySelectorAll('.result-image, .results-table-wrap, .steps-row, .error-msg').forEach(e => e.remove());
+    placeholder.style.display = 'none';
+    loading.classList.add('visible');
+    btn.disabled = true;
+
+    let customPoints = null;
+    if (selectedShape === 'custom') {
+      const raw = document.getElementById('custom-points').value.trim();
+      customPoints = raw.split('\n').map(line => {
+        const [x, y] = line.trim().split(/\s+/).map(Number);
+        return [x, y];
+      }).filter(p => !isNaN(p[0]) && !isNaN(p[1]));
+    }
+
+    const payload = {
+      shape: selectedShape,
+      transformations: queue.map(q => q.entry),
+      view_mode: viewMode,
+      custom_points: customPoints,
+    };
+
+    try {
+      const res  = await fetch('/transform', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+
+      loading.classList.remove('visible');
+
+      if (data.error) {
+        const err = document.createElement('div');
+        err.className = 'error-msg';
+        err.textContent = '⚠ ' + data.error;
+        document.getElementById('result-panel').appendChild(err);
+        return;
+      }
+
+      // Steps chips
+      if (data.steps && data.steps.length > 1) {
+        const stepsRow = document.createElement('div');
+        stepsRow.className = 'steps-row';
+        data.steps.forEach((s, i) => {
+          const chip = document.createElement('span');
+          chip.className = 'step-chip';
+          chip.textContent = s;
+          stepsRow.appendChild(chip);
+          if (i < data.steps.length - 1) {
+            const arr = document.createElement('span');
+            arr.className = 'step-arrow';
+            arr.textContent = '→';
+            stepsRow.appendChild(arr);
+          }
+        });
+        document.getElementById('result-panel').appendChild(stepsRow);
+      }
+
+      // Image
+      const wrap = document.createElement('div');
+      wrap.className = 'result-image';
+      const img = document.createElement('img');
+      img.src = 'data:image/png;base64,' + data.image;
+      img.alt = 'Transformation result';
+      wrap.appendChild(img);
+      document.getElementById('result-panel').appendChild(wrap);
+
+      // Points table
+      if (data.points && data.points.length) {
+        const tableWrap = document.createElement('div');
+        tableWrap.className = 'results-table-wrap';
+        tableWrap.innerHTML = `
+          <h3>Final Transformed Coordinates</h3>
+          <table>
+            <thead><tr><th>Point #</th><th>X</th><th>Y</th></tr></thead>
+            <tbody>
+              ${data.points.map((p, i) => `<tr><td>${i+1}</td><td>${p[0]}</td><td>${p[1]}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        `;
+        document.getElementById('result-panel').appendChild(tableWrap);
+      }
+
+    } catch (e) {
+      loading.classList.remove('visible');
+      const err = document.createElement('div');
+      err.className = 'error-msg';
+      err.textContent = '⚠ Network error: ' + e.message;
+      document.getElementById('result-panel').appendChild(err);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+</script>
+</body>
+</html>
