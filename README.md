@@ -54,7 +54,7 @@ geometric-transformation-tool/
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/your-username/geometric-transformation-tool.git
+git clone https://github.com/kaan-eroglu/geometric-transformation-tool.git
 cd geometric-transformation-tool
 ```
 
